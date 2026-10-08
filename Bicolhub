@@ -1,0 +1,356 @@
+-- [[ JUDE BADING BAKLA ]] --
+-- Features: Modern GUI, Auto Steal, Auto Dr. Scramble Boss, Auto Butterfly
+
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Siguraduhing walang duplicate UI na nakabukas
+if CoreGui:FindFirstChild("StealAnEggHub") then
+    CoreGui.StealAnEggHub:Destroy()
+end
+
+-- ScreenGui Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "StealAnEggHub"
+ScreenGui.Parent = CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Frame (Ang Window)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 500, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true -- Pwedeng i-drag sa screen
+MainFrame.Parent = ScreenGui
+
+-- Rounded Corners para sa Main Frame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- Top Bar (Header)
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+-- Title Text
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Text = "EGG STEALER HUB v1.0"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextColor3 = Color3.fromRGB(0, 255, 150) -- Neon Green Accent
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(0.5, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Parent = TopBar
+
+-- Sidebar (Tab Container)
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 130, 1, -45)
+Sidebar.Position = UDim2.new(0, 0, 0, 45)
+Sidebar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 10)
+SidebarCorner.Parent = Sidebar
+
+local SidebarLayout = Instance.new("UIListLayout")
+SidebarLayout.Parent = Sidebar
+SidebarLayout.Padding = UDim.new(0, 5)
+SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- Content Pages Container
+local Container = Instance.new("Frame")
+Container.Name = "Container"
+Container.Size = UDim2.new(1, -140, 1, -55)
+Container.Position = UDim2.new(0, 135, 0, 50)
+Container.BackgroundTransparency = 1
+Container.Parent = MainFrame
+
+-- [[ LOGIC AND STATE ]] --
+_G.AutoSteal = false
+_G.AutoDrScramble = false
+_G.AutoButterfly = false
+
+local function teleportTo(cframe)
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character.HumanoidRootPart.CFrame = cframe
+    end
+end
+
+-- [[ TABS & PAGES SYSTEM ]] --
+local currentTab = nil
+
+local function createTab(tabName)
+    -- Button sa Sidebar
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = tabName .. "Btn"
+    TabButton.Size = UDim2.new(0.9, 0, 0, 35)
+    TabButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+    TabButton.Text = tabName
+    TabButton.Font = Enum.Font.GothamMedium
+    TabButton.TextSize = 13
+    TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TabButton.BorderSizePixel = 0
+    TabButton.Parent = Sidebar
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.Parent = TabButton
+    
+    -- Page para sa Content
+    local Page = Instance.new("ScrollingFrame")
+    Page.Name = tabName .. "Page"
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.Visible = false
+    Page.ScrollBarThickness = 2
+    Page.Parent = Container
+    
+    local PageLayout = Instance.new("UIListLayout")
+    PageLayout.Parent = Page
+    PageLayout.Padding = UDim.new(0, 8)
+    
+    -- Tab Switching Animation at Logic
+    TabButton.MouseButton1Click:Connect(function()
+        for _, child in ipairs(Container:GetChildren()) do
+            if child:IsA("ScrollingFrame") then child.Visible = false end
+        end
+        for _, child in ipairs(Sidebar:GetChildren()) do
+            if child:IsA("TextButton") then 
+                TweenService:Create(child, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 28, 34), TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+            end
+        end
+        Page.Visible = true
+        TweenService:Create(TabButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 150), TextColor3 = Color3.fromRGB(0, 0, 0)}):Play()
+    end)
+    
+    return Page
+end
+
+-- [[ TOGGLE COMPONENT BUILDER ]] --
+local function createToggle(parentPage, text, globalVarName)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(0.95, 0, 0, 40)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Parent = parentPage
+    
+    local TFCorner = Instance.new("UICorner")
+    TFCorner.CornerRadius = UDim.new(0, 6)
+    TFCorner.Parent = ToggleFrame
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Text = text
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.TextSize = 14
+    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleLabel.Position = UDim2.new(0, 10, 0, 0)
+    ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleLabel.Parent = ToggleFrame
+    
+    local Checkbox = Instance.new("TextButton")
+    Checkbox.Size = UDim2.new(0, 45, 0, 22)
+    Checkbox.Position = UDim2.new(1, -55, 0.5, -11)
+    Checkbox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    Checkbox.Text = ""
+    Checkbox.Parent = ToggleFrame
+    
+    local CBCorner = Instance.new("UICorner")
+    CBCorner.CornerRadius = UDim.new(0, 11)
+    CBCorner.Parent = Checkbox
+    
+    local Indicator = Instance.new("Frame")
+    Indicator.Size = UDim2.new(0, 16, 0, 16)
+    Indicator.Position = UDim2.new(0, 3, 0.5, -8)
+    Indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Indicator.Parent = Checkbox
+    
+    local IndCorner = Instance.new("UICorner")
+    IndCorner.CornerRadius = UDim.new(0, 8)
+    IndCorner.Parent = Indicator
+    
+    Checkbox.MouseButton1Click:Connect(function()
+        _G[globalVarName] = not _G[globalVarName]
+        if _G[globalVarName] then
+            TweenService:Create(Checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 150)}):Play()
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = UDim2.new(1, -19, 0.5, -8)}):Play()
+        else
+            TweenService:Create(Checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}):Play()
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0.5, -8)}):Play()
+        end
+    end)
+end
+
+-- [[ TABS AT UTILITIES CREATION ]] --
+local FarmingPage = createTab("Main Farm")
+local CombatPage = createTab("Combat/Boss")
+local MiscPage = createTab("Credits")
+
+-- Idagdag ang mga Toggle sa kani-kanilang Tabs
+createToggle(FarmingPage, "Auto Steal Eggs", "AutoSteal")
+createToggle(FarmingPage, "Auto Collect Butterflies", "AutoButterfly")
+createToggle(CombatPage, "Auto Dr. Scramble Boss", "AutoDrScramble")
+
+-- Credits Content
+local CreditsText = Instance.new("TextLabel")
+CreditsText.Text = "JUDE BADINDONG Press Insert or RightShift to Hide UI\nStatus: Undetected"
+CreditsText.Font = Enum.Font.Gotham
+CreditsText.TextSize = 13
+CreditsText.TextColor3 = Color3.fromRGB(150, 150, 150)
+CreditsText.Size = UDim2.new(1, 0, 0, 100)
+CreditsText.BackgroundTransparency = 1
+CreditsText.Parent = MiscPage
+
+-- I-activate ang unang Tab bilang default
+Sidebar.MainFarmBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+Sidebar.MainFarmBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+Container.MainFarmPage.Visible = true
+
+-- [[ BACKGROUND LOOPS FOR AUTOMATION ]] --
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoSteal then
+            local eggsFolder = workspace:FindFirstChild("Eggs") or workspace:FindFirstChild("EggSpawns")
+            if eggsFolder then
+                for _, egg in ipairs(eggsFolder:GetChildren()) do
+                    if egg:IsA("BasePart") and egg.Transparency < 1 then
+                        teleportTo(egg.CFrame + Vector3.new(0, 2, 0))
+                        task.wait(0.3)
+                        local playerBase = workspace:FindFirstChild("Bases") and workspace.Bases:FindFirstChild(LocalPlayer.Name)
+                        if playerBase and playerBase:FindFirstChild("DeliverPoint") then
+                            teleportTo(playerBase.DeliverPoint.CFrame)
+                            task.wait(0.3)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if _G.AutoDrScramble then
+            local boss = workspace:FindFirstChild("DrScramble") or (workspace:FindFirstChild("Bosses") and workspace.Bosses:FindFirstChild("DrScramble"))
+            if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+                teleportTo(boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4))
+                local combatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events") and game:GetService("ReplicatedStorage").Events:FindFirstChild("Attack")
+                if combatRemote then combatRemote:FireServer() end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+
+
+-- [[ STEAL AN EGG: AUTOMATION FRAMEWORK ]] --
+-- Features: Auto Steal, Auto Dr. Scramble Boss, Auto Butterfly
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+
+-- Configuration Toggles
+_G.AutoSteal = true
+_G.AutoDrScramble = true
+_G.AutoButterfly = true
+
+-- Helper Function: Safe Teleport / Move
+local function teleportTo(cframe)
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        -- Maaaring gumamit ng Tween para iwas-ban o direktang CFrame CFrame
+        character.HumanoidRootPart.CFrame = cframe
+    end
+end
+
+-- 1. AUTO STEAL LOGIC
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoSteal then
+            -- Hinahanap ang pinakamalapit o pinakamataas ang value na itlog sa workspace
+            local eggsFolder = workspace:FindFirstChild("Eggs") or workspace:FindFirstChild("EggSpawns")
+            if eggsFolder then
+                for _, egg in ipairs(eggsFolder:GetChildren()) do
+                    if egg:IsA("BasePart") and egg.Transparency < 1 then
+                        -- Teleport sa posisyon ng itlog para makuha ito
+                        teleportTo(egg.CFrame + Vector3.new(0, 2, 0))
+                        task.wait(0.3)
+                        
+                        -- Pagkatapos makuha, i-teleport pabalik sa Base para i-sell/i-place
+                        local playerBase = workspace:FindFirstChild("Bases") and workspace.Bases:FindFirstChild(LocalPlayer.Name)
+                        if playerBase and playerBase:FindFirstChild("DeliverPoint") then
+                            teleportTo(playerBase.DeliverPoint.CFrame)
+                            task.wait(0.3)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- 2. AUTO DR. SCRAMBLE BOSS LOGIC
+task.spawn(function()
+    while task.wait(1) do
+        if _G.AutoDrScramble then
+            -- Suriin kung active ang Dr. Scramble Boss sa workspace
+            local boss = workspace:FindFirstChild("DrScramble") or workspace:FindFirstChild("Bosses") and workspace.Bosses:FindFirstChild("DrScramble")
+            if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+                -- Mag-teleport sa likod ng boss para umiwas sa kanyang frontal attacks
+                teleportTo(boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4))
+                
+                -- Auto clicker / attack event trigger (Palitan ang remote depende sa laro)
+                local combatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events") and game:GetService("ReplicatedStorage").Events:FindFirstChild("Attack")
+                if combatRemote then
+                    combatRemote:FireServer()
+                end
+            end
+        end
+    end
+end)
+
+-- 3. AUTO BUTTERFLY LOGIC
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoButterfly then
+            -- Naghahanap ng mga active na Butterflies o Fireflies sa map para sa buffs
+            local environment = workspace:FindFirstChild("Environment") or workspace
+            for _, obj in ipairs(environment:GetChildren()) do
+                if obj.Name:lower():find("butterfly") and obj:IsA("BasePart") then
+                    -- I-teleport ang player sa butterfly para i-collect ang multiplier o rewards
+                    teleportTo(obj.CFrame)
+                    task.wait(0.2)
+                    break
+                end
+            end
+        end
+    end
+end)
+
+print("[SUCCESS] Steal An Egg Automation Framework Successfully Loaded!")
