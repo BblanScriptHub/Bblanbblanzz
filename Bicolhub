@@ -1,356 +1,650 @@
--- [[ JUDE BADING BAKLA ]] --
--- Features: Modern GUI, Auto Steal, Auto Dr. Scramble Boss, Auto Butterfly
+-- BBLAN Executor v1.3.60: LAYOG NA CHEAT SA STEAL AN EGG
+-- Author: BBLAN
+-- Version: 62.0.0
+-- BOTO NINDO
 
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Siguraduhing walang duplicate UI na nakabukas
-if CoreGui:FindFirstChild("StealAnEggHub") then
-    CoreGui.StealAnEggHub:Destroy()
+-- Cleaning
+if _G.ServerFly_Running then
+    _G.ServerFly_Running = false
+    task.wait(0.5)
 end
+_G.ServerFly_Running = true
 
--- ScreenGui Setup
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "StealAnEggHub"
-ScreenGui.Parent = CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local Player = game.Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ScriptContext = game:GetService("ScriptContext")
+local Camera = Workspace.CurrentCamera
+local NetworkClient = game:GetService("NetworkClient")
 
--- Main Frame (Ang Window)
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 500, 0, 320)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
-MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true -- Pwedeng i-drag sa screen
-MainFrame.Parent = ScreenGui
-
--- Rounded Corners para sa Main Frame
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
-
--- Top Bar (Header)
-local TopBar = Instance.new("Frame")
-TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 45)
-TopBar.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
-
-local TopCorner = Instance.new("UICorner")
-TopCorner.CornerRadius = UDim.new(0, 10)
-TopCorner.Parent = TopBar
-
--- Title Text
-local Title = Instance.new("TextLabel")
-Title.Name = "Title"
-Title.Text = "EGG STEALER HUB v1.0"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
-Title.TextColor3 = Color3.fromRGB(0, 255, 150) -- Neon Green Accent
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Position = UDim2.new(0, 15, 0, 0)
-Title.Size = UDim2.new(0.5, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Parent = TopBar
-
--- Sidebar (Tab Container)
-local Sidebar = Instance.new("Frame")
-Sidebar.Name = "Sidebar"
-Sidebar.Size = UDim2.new(0, 130, 1, -45)
-Sidebar.Position = UDim2.new(0, 0, 0, 45)
-Sidebar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-
-local SidebarCorner = Instance.new("UICorner")
-SidebarCorner.CornerRadius = UDim.new(0, 10)
-SidebarCorner.Parent = Sidebar
-
-local SidebarLayout = Instance.new("UIListLayout")
-SidebarLayout.Parent = Sidebar
-SidebarLayout.Padding = UDim.new(0, 5)
-SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- Content Pages Container
-local Container = Instance.new("Frame")
-Container.Name = "Container"
-Container.Size = UDim2.new(1, -140, 1, -55)
-Container.Position = UDim2.new(0, 135, 0, 50)
-Container.BackgroundTransparency = 1
-Container.Parent = MainFrame
-
--- [[ LOGIC AND STATE ]] --
-_G.AutoSteal = false
-_G.AutoDrScramble = false
-_G.AutoButterfly = false
-
-local function teleportTo(cframe)
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        character.HumanoidRootPart.CFrame = cframe
+-- ===== SAFE CALL =====
+local function safeCall(func, ...)
+    local success, result = pcall(func, ...)
+    if success then
+        return result
     end
+    return nil
 end
 
--- [[ TABS & PAGES SYSTEM ]] --
-local currentTab = nil
+-- ===== LOADING RAYFIELD =====
+local Rayfield = nil
+local loadSuccess, loadError = pcall(function()
+    Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
 
-local function createTab(tabName)
-    -- Button sa Sidebar
-    local TabButton = Instance.new("TextButton")
-    TabButton.Name = tabName .. "Btn"
-    TabButton.Size = UDim2.new(0.9, 0, 0, 35)
-    TabButton.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-    TabButton.Text = tabName
-    TabButton.Font = Enum.Font.GothamMedium
-    TabButton.TextSize = 13
-    TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-    TabButton.BorderSizePixel = 0
-    TabButton.Parent = Sidebar
-    
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 6)
-    BtnCorner.Parent = TabButton
-    
-    -- Page para sa Content
-    local Page = Instance.new("ScrollingFrame")
-    Page.Name = tabName .. "Page"
-    Page.Size = UDim2.new(1, 0, 1, 0)
-    Page.BackgroundTransparency = 1
-    Page.Visible = false
-    Page.ScrollBarThickness = 2
-    Page.Parent = Container
-    
-    local PageLayout = Instance.new("UIListLayout")
-    PageLayout.Parent = Page
-    PageLayout.Padding = UDim.new(0, 8)
-    
-    -- Tab Switching Animation at Logic
-    TabButton.MouseButton1Click:Connect(function()
-        for _, child in ipairs(Container:GetChildren()) do
-            if child:IsA("ScrollingFrame") then child.Visible = false end
-        end
-        for _, child in ipairs(Sidebar:GetChildren()) do
-            if child:IsA("TextButton") then 
-                TweenService:Create(child, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 28, 34), TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+if not loadSuccess or not Rayfield then
+    print("[Fly] Error loading Rayfield: " .. tostring(loadError))
+end
+
+-- ============================================
+-- 1. NETWORK CONTROL
+-- ============================================
+local function SetNetworkOwnership()
+    safeCall(function()
+        if RootPart then
+            NetworkClient:SetOwnership(RootPart, Player)
+            if not RootPart:FindFirstChild("NetworkOwnership") then
+                local own = Instance.new("BoolValue")
+                own.Name = "NetworkOwnership"
+                own.Parent = RootPart
+                own.Value = true
             end
-        end
-        Page.Visible = true
-        TweenService:Create(TabButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 150), TextColor3 = Color3.fromRGB(0, 0, 0)}):Play()
-    end)
-    
-    return Page
-end
-
--- [[ TOGGLE COMPONENT BUILDER ]] --
-local function createToggle(parentPage, text, globalVarName)
-    local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(0.95, 0, 0, 40)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
-    ToggleFrame.BorderSizePixel = 0
-    ToggleFrame.Parent = parentPage
-    
-    local TFCorner = Instance.new("UICorner")
-    TFCorner.CornerRadius = UDim.new(0, 6)
-    TFCorner.Parent = ToggleFrame
-    
-    local ToggleLabel = Instance.new("TextLabel")
-    ToggleLabel.Text = text
-    ToggleLabel.Font = Enum.Font.Gotham
-    ToggleLabel.TextSize = 14
-    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleLabel.Position = UDim2.new(0, 10, 0, 0)
-    ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
-    ToggleLabel.BackgroundTransparency = 1
-    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    ToggleLabel.Parent = ToggleFrame
-    
-    local Checkbox = Instance.new("TextButton")
-    Checkbox.Size = UDim2.new(0, 45, 0, 22)
-    Checkbox.Position = UDim2.new(1, -55, 0.5, -11)
-    Checkbox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    Checkbox.Text = ""
-    Checkbox.Parent = ToggleFrame
-    
-    local CBCorner = Instance.new("UICorner")
-    CBCorner.CornerRadius = UDim.new(0, 11)
-    CBCorner.Parent = Checkbox
-    
-    local Indicator = Instance.new("Frame")
-    Indicator.Size = UDim2.new(0, 16, 0, 16)
-    Indicator.Position = UDim2.new(0, 3, 0.5, -8)
-    Indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Indicator.Parent = Checkbox
-    
-    local IndCorner = Instance.new("UICorner")
-    IndCorner.CornerRadius = UDim.new(0, 8)
-    IndCorner.Parent = Indicator
-    
-    Checkbox.MouseButton1Click:Connect(function()
-        _G[globalVarName] = not _G[globalVarName]
-        if _G[globalVarName] then
-            TweenService:Create(Checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 150)}):Play()
-            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = UDim2.new(1, -19, 0.5, -8)}):Play()
-        else
-            TweenService:Create(Checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}):Play()
-            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0.5, -8)}):Play()
         end
     end)
 end
 
--- [[ TABS AT UTILITIES CREATION ]] --
-local FarmingPage = createTab("Main Farm")
-local CombatPage = createTab("Combat/Boss")
-local MiscPage = createTab("Credits")
-
--- Idagdag ang mga Toggle sa kani-kanilang Tabs
-createToggle(FarmingPage, "Auto Steal Eggs", "AutoSteal")
-createToggle(FarmingPage, "Auto Collect Butterflies", "AutoButterfly")
-createToggle(CombatPage, "Auto Dr. Scramble Boss", "AutoDrScramble")
-
--- Credits Content
-local CreditsText = Instance.new("TextLabel")
-CreditsText.Text = "JUDE BADINDONG Press Insert or RightShift to Hide UI\nStatus: Undetected"
-CreditsText.Font = Enum.Font.Gotham
-CreditsText.TextSize = 13
-CreditsText.TextColor3 = Color3.fromRGB(150, 150, 150)
-CreditsText.Size = UDim2.new(1, 0, 0, 100)
-CreditsText.BackgroundTransparency = 1
-CreditsText.Parent = MiscPage
-
--- I-activate ang unang Tab bilang default
-Sidebar.MainFarmBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-Sidebar.MainFarmBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-Container.MainFarmPage.Visible = true
-
--- [[ BACKGROUND LOOPS FOR AUTOMATION ]] --
 task.spawn(function()
-    while task.wait(0.5) do
-        if _G.AutoSteal then
-            local eggsFolder = workspace:FindFirstChild("Eggs") or workspace:FindFirstChild("EggSpawns")
-            if eggsFolder then
-                for _, egg in ipairs(eggsFolder:GetChildren()) do
-                    if egg:IsA("BasePart") and egg.Transparency < 1 then
-                        teleportTo(egg.CFrame + Vector3.new(0, 2, 0))
-                        task.wait(0.3)
-                        local playerBase = workspace:FindFirstChild("Bases") and workspace.Bases:FindFirstChild(LocalPlayer.Name)
-                        if playerBase and playerBase:FindFirstChild("DeliverPoint") then
-                            teleportTo(playerBase.DeliverPoint.CFrame)
-                            task.wait(0.3)
-                        end
-                        break
-                    end
+    while _G.ServerFly_Running do
+        SetNetworkOwnership()
+        task.wait(0.5)
+    end
+end)
+
+-- ============================================
+-- 2. GOOD FASHION
+-- ============================================
+local function ActivateGodMode()
+    safeCall(function()
+        Humanoid.MaxHealth = 999999999
+        Humanoid.Health = 999999999
+        Humanoid.BreakJointsOnDeath = false
+    end)
+
+    if getrawmetatable then
+        local mt = safeCall(function() return getrawmetatable(Humanoid) end)
+        if mt and mt.__newindex then
+            local oldNewIndex = mt.__newindex
+            mt.__newindex = function(self, key, value)
+                if key == "Health" and value < Humanoid.Health then
+                    return
                 end
+                if key == "MaxHealth" then
+                    return
+                end
+                return oldNewIndex(self, key, value)
             end
         end
     end
-end)
 
-task.spawn(function()
-    while task.wait(1) do
-        if _G.AutoDrScramble then
-            local boss = workspace:FindFirstChild("DrScramble") or (workspace:FindFirstChild("Bosses") and workspace.Bosses:FindFirstChild("DrScramble"))
-            if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
-                teleportTo(boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4))
-                local combatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events") and game:GetService("ReplicatedStorage").Events:FindFirstChild("Attack")
-                if combatRemote then combatRemote:FireServer() end
-            end
+    task.spawn(function()
+        while _G.ServerFly_Running do
+            safeCall(function()
+                if Humanoid then
+                    Humanoid.Health = 999999999
+                    Humanoid.MaxHealth = 999999999
+                end
+            end)
+            task.wait(0.1)
         end
+    end)
+end
+
+-- ============================================
+-- 3. FLY WITH CONSTANT SYNCHRONIZATION
+-- ============================================
+local flyEnabled = false
+local flySpeed = 35
+local flyBodyVelocity = nil
+local flyConnection = nil
+local flyStartPosition = nil
+local flyToggleState = false
+
+local function CleanFly()
+    if flyBodyVelocity then
+        safeCall(function() flyBodyVelocity:Destroy() end)
+        flyBodyVelocity = nil
     end
-end)
-
-task.spawn(function()
-    while task.wait(0.5) do
-
-
--- [[ STEAL AN EGG: AUTOMATION FRAMEWORK ]] --
--- Features: Auto Steal, Auto Dr. Scramble Boss, Auto Butterfly
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local TweenService = game:GetService("TweenService")
-
--- Configuration Toggles
-_G.AutoSteal = true
-_G.AutoDrScramble = true
-_G.AutoButterfly = true
-
--- Helper Function: Safe Teleport / Move
-local function teleportTo(cframe)
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        -- Maaaring gumamit ng Tween para iwas-ban o direktang CFrame CFrame
-        character.HumanoidRootPart.CFrame = cframe
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
     end
 end
 
--- 1. AUTO STEAL LOGIC
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.AutoSteal then
-            -- Hinahanap ang pinakamalapit o pinakamataas ang value na itlog sa workspace
-            local eggsFolder = workspace:FindFirstChild("Eggs") or workspace:FindFirstChild("EggSpawns")
-            if eggsFolder then
-                for _, egg in ipairs(eggsFolder:GetChildren()) do
-                    if egg:IsA("BasePart") and egg.Transparency < 1 then
-                        -- Teleport sa posisyon ng itlog para makuha ito
-                        teleportTo(egg.CFrame + Vector3.new(0, 2, 0))
-                        task.wait(0.3)
-                        
-                        -- Pagkatapos makuha, i-teleport pabalik sa Base para i-sell/i-place
-                        local playerBase = workspace:FindFirstChild("Bases") and workspace.Bases:FindFirstChild(LocalPlayer.Name)
-                        if playerBase and playerBase:FindFirstChild("DeliverPoint") then
-                            teleportTo(playerBase.DeliverPoint.CFrame)
-                            task.wait(0.3)
+local function StartFly()
+    if not Character or not RootPart then return end
+
+    SetNetworkOwnership()
+    flyStartPosition = RootPart.Position
+    CleanFly()
+
+    flyBodyVelocity = Instance.new("BodyVelocity")
+    flyBodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
+    flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    flyBodyVelocity.P = 5000
+    flyBodyVelocity.Parent = RootPart
+
+    safeCall(function()
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Falling, false)
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    end)
+
+    safeCall(function()
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not flyToggleState then
+            if flyEnabled then
+                flyEnabled = false
+                CleanFly()
+                safeCall(function()
+                    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Falling, true)
+                    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+                end)
+                safeCall(function()
+                    for _, part in pairs(Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = true
                         end
-                        break
+                    end
+                end)
+                if FlyToggle then
+                    FlyToggle:Set(false)
+                end
+                print("[Fly] Flight stopped (slider disabled)")
+            end
+            return
+        end
+
+        if not RootPart or not flyBodyVelocity or not flyEnabled then
+            return
+        end
+
+        SetNetworkOwnership()
+
+        safeCall(function()
+            local camLook = Camera.CFrame.LookVector
+            local camRight = Camera.CFrame.RightVector
+            local camUp = Camera.CFrame.UpVector
+
+            local forward = Vector3.new(camLook.X, 0, camLook.Z).Unit
+            local right = Vector3.new(camRight.X, 0, camRight.Z).Unit
+
+            if forward.Magnitude < 0.1 then
+                forward = Vector3.new(0, 0, -1)
+                right = Vector3.new(1, 0, 0)
+            end
+
+            local move = Vector3.new(0, 0, 0)
+
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + forward end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - forward end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - right end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + right end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + camUp end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - camUp end
+
+            if move.Magnitude > 0.01 then
+                local vel = move.Unit * flySpeed
+                flyBodyVelocity.Velocity = vel
+                RootPart . CFrame = CFrame . new ( RootPart . Position + vel * 0.05 );
+            else
+                flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            end
+
+            if Humanoid.Health < 1 then
+                Humanoid.Health = 999999999
+            end
+        end)
+    end)
+end
+
+local function StopFly()
+    flyEnabled = false
+    flyToggleState = false
+    CleanFly()
+
+    safeCall(function()
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Falling, true)
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+        Humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+    end)
+
+    safeCall(function()
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end)
+
+    if flyStartPosition then
+        safeCall(function()
+            RootPart.CFrame = CFrame.new(flyStartPosition)
+        end)
+        flyStartPosition = nil
+    end
+    
+    if FlyToggle then
+        FlyToggle:Set(false)
+    end
+end
+
+local function OnFlyToggle(Value)
+    flyToggleState = Value
+    
+    if Value then
+        if not flyEnabled then
+            flyEnabled = true
+            if Character and Character.Parent then
+                StartFly()
+                print("[Fly] Flight is enabled (slider ON)")
+            else
+                print("[Fly] Waiting for character respawn...")
+                local connection
+                connection = Player.CharacterAdded:Connect(function(newChar)
+                    if flyToggleState then
+                        task.wait(0.5)
+                        Character = newChar
+                        Humanoid = newChar:WaitForChild("Humanoid")
+                        RootPart = newChar:WaitForChild("HumanoidRootPart")
+                        flyEnabled = true
+                        StartFly()
+                        ActivateGodMode()
+                        SetNetworkOwnership()
+                        print("[Fly] Flight restored after respawn!")
+                    end
+                    connection:Disconnect()
+                end)
+            end
+        end
+    else
+        if flyEnabled then
+            flyEnabled = false
+            StopFly()
+            print("[Fly] Flight is disabled (slider OFF)")
+        end
+    end
+end
+
+-- ============================================
+-- 4. SPINNER
+-- ============================================
+local spinEnabled = false
+local spinSpeed = 5
+local spinConnection = nil
+local spinSteppedConnection = nil
+local spinToggleState = false
+
+local function DoSpin()
+    if not spinEnabled or not RootPart then return end
+
+    safeCall(function()
+        SetNetworkOwnership()
+        
+        local currentCFrame = RootPart.CFrame
+        local angle = spinSpeed * 2 * math.pi * 0.016
+        local rotation = CFrame.Angles(0, angle, 0)
+        local newCFrame = currentCFrame * rotation
+        RootPart.CFrame = newCFrame
+        RootPart.Position = newCFrame.Position
+        
+        local remote = ReplicatedStorage:FindFirstChild("RemoteEvent") 
+            or ReplicatedStorage:FindFirstChild("MoveEvent") 
+            or ReplicatedStorage:FindFirstChild("SyncEvent")
+        
+        if remote and remote:IsA("RemoteEvent") and remote.FireServer then
+            safeCall(function()
+                remote:FireServer("Move", newCFrame)
+            end)
+        end
+    end)
+end
+
+local function StartSpin()
+    if spinEnabled then return end
+    spinEnabled = true
+    SetNetworkOwnership()
+
+    if spinConnection then
+        spinConnection:Disconnect()
+        spinConnection = nil
+    end
+    if spinSteppedConnection then
+        spinSteppedConnection:Disconnect()
+        spinSteppedConnection = nil
+    end
+
+    print("[Spin] Spinner started! Speed: " .. spinSpeed .. " rpm")
+
+    spinConnection = RunService.Heartbeat:Connect(function()
+        if not spinToggleState then
+            if spinEnabled then
+                spinEnabled = false
+                StopSpin()
+                if SpinToggle then
+                    SpinToggle:Set(false)
+                end
+            end
+            return
+        end
+        DoSpin()
+    end)
+
+    spinSteppedConnection = RunService.Stepped:Connect(function()
+        if spinToggleState then
+            DoSpin()
+        end
+    end)
+
+    task.spawn(function()
+        while spinEnabled and _G.ServerFly_Running do
+            SetNetworkOwnership()
+            task.wait(0.1)
+        end
+    end)
+
+    task.spawn(function()
+        while spinEnabled and _G.ServerFly_Running do
+            safeCall(function()
+                for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                    if remote:IsA("RemoteEvent") and remote.FireServer then
+                        local name = remote.Name:lower()
+                        if name:find("move") or name:find("sync") or name:find("position") or name:find("update") then
+                            safeCall(function()
+                                remote:FireServer(RootPart.CFrame)
+                            end)
+                            break
+                        end
                     end
                 end
+            end)
+            task.wait(0.05)
+        end
+    end)
+end
+
+local function StopSpin()
+    spinEnabled = false
+    spinToggleState = false
+    if spinConnection then
+        spinConnection:Disconnect()
+        spinConnection = nil
+    end
+    if spinSteppedConnection then
+        spinSteppedConnection:Disconnect()
+        spinSteppedConnection = nil
+    end
+    if SpinToggle then
+        SpinToggle:Set(false)
+    end
+    print("[Spin] Spinner stopped")
+end
+
+local function OnSpinToggle(Value)
+    spinToggleState = Value
+    
+    if Value then
+        if not spinEnabled then
+            StartSpin()
+            if SpinSlider then
+                SpinSlider:Set(spinSpeed)
             end
+            print("[Spin] Spinner is enabled (slider ON)")
+        end
+    else
+        if spinEnabled then
+            spinEnabled = false
+            StopSpin()
+            print("[Spin] Spinner is disabled (slider OFF)")
         end
     end
-end)
+end
 
--- 2. AUTO DR. SCRAMBLE BOSS LOGIC
-task.spawn(function()
-    while task.wait(1) do
-        if _G.AutoDrScramble then
-            -- Suriin kung active ang Dr. Scramble Boss sa workspace
-            local boss = workspace:FindFirstChild("DrScramble") or workspace:FindFirstChild("Bosses") and workspace.Bosses:FindFirstChild("DrScramble")
-            if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
-                -- Mag-teleport sa likod ng boss para umiwas sa kanyang frontal attacks
-                teleportTo(boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4))
-                
-                -- Auto clicker / attack event trigger (Palitan ang remote depende sa laro)
-                local combatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events") and game:GetService("ReplicatedStorage").Events:FindFirstChild("Attack")
-                if combatRemote then
-                    combatRemote:FireServer()
+-- ============================================
+-- 5. BYPASS ANTI-CHEAT
+-- ============================================
+local function KillAntiCheat()
+    safeCall(function()
+        for _, v in pairs(ScriptContext:GetChildren()) do
+            if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ModuleScript") then
+                local name = v.Name:lower()
+                if name:find("anticheat") or name:find("anti") or name:find("cheat") or 
+                   name:find("detect") or name:find("monitor") or name:find("check") then
+                    safeCall(function() v:Destroy() end)
                 end
             end
         end
+    end)
+end
+
+-- ============================================
+-- 6. RESPAIN PROCESSING
+-- ============================================
+Player.CharacterAdded:Connect(function(newChar)
+    print("[Fly] Character respawns!")
+    task.wait(0.5)
+    Character = newChar
+    Humanoid = newChar:WaitForChild("Humanoid")
+    RootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    if flyToggleState and not flyEnabled then
+        flyEnabled = true
+        StartFly()
+        if FlyToggle then
+            FlyToggle:Set(true)
+        end
+        print("[Fly] Flight automatically restored after respawn!")
     end
+    
+    if not flyToggleState and flyEnabled then
+        flyEnabled = false
+        StopFly()
+        if FlyToggle then
+            FlyToggle:Set(false)
+        end
+        print("[Fly] Flight disabled (slider OFF after respawn)")
+    end
+    
+    if spinToggleState and not spinEnabled then
+        spinEnabled = true
+        StartSpin()
+        if SpinToggle then
+            SpinToggle:Set(true)
+        end
+    end
+    
+    if not spinToggleState and spinEnabled then
+        spinEnabled = false
+        StopSpin()
+        if SpinToggle then
+            SpinToggle:Set(false)
+        end
+    end
+    
+    ActivateGodMode()
+    SetNetworkOwnership()
 end)
 
--- 3. AUTO BUTTERFLY LOGIC
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.AutoButterfly then
-            -- Naghahanap ng mga active na Butterflies o Fireflies sa map para sa buffs
-            local environment = workspace:FindFirstChild("Environment") or workspace
-            for _, obj in ipairs(environment:GetChildren()) do
-                if obj.Name:lower():find("butterfly") and obj:IsA("BasePart") then
-                    -- I-teleport ang player sa butterfly para i-collect ang multiplier o rewards
-                    teleportTo(obj.CFrame)
-                    task.wait(0.2)
-                    break
+-- ============================================
+-- 7. GUI (Rayfield)
+-- ============================================
+local Window, MainTab, InfoTab, SettingsTab
+local FlyToggle, SpeedSlider, SpinToggle, SpinSlider
+
+local function CreateGUI()
+    if not Rayfield then
+        print("[Fly] Rayfield not loaded")
+        return false
+    end
+
+    local success, err = pcall(function()
+        Window = Rayfield:CreateWindow({
+            Name = "Fly Script for Steal a Egg",
+            LoadingTitle = "Fly Script for Steal a Egg",
+            LoadingSubtitle = "by m1xile",
+            Theme = "DarkBlue",
+            ConfigurationSaving = {
+                Enabled = false,
+            },
+            Discord = {
+                Enabled = false,
+            },
+            KeySystem = false,
+        })
+
+        MainTab = Window:CreateTab("Home", 4483362458)
+
+        local FlySection = MainTab:CreateSection("Полёт")
+
+        FlyToggle = MainTab:CreateToggle({
+            Name = "TURN ON FLIGHT [F]",
+            CurrentValue = false,
+            Flag = "FlyToggle",
+            Callback = function(Value)
+                OnFlyToggle(Value)
+            end,
+        })
+
+        SpeedSlider = MainTab:CreateSlider({
+            Name = "Flight speed",
+            Range = {10, 80},
+            Increment = 1,
+            Suffix = "ед.",
+            CurrentValue = 35,
+            Flag = "FlySpeed",
+            Callback = function(Value)
+                flySpeed = Value
+            end,
+        })
+
+        MainTab:CreateDivider()
+
+        local SpinSection = MainTab:CreateSection("SPIN (FUN)")
+
+        SpinToggle = MainTab:CreateToggle({
+            Name = "TURN ON THE SPIN",
+            CurrentValue = false,
+            Flag = "SpinToggle",
+            Callback = function(Value)
+                OnSpinToggle(Value)
+            end,
+        })
+
+        SpinSlider = MainTab:CreateSlider({
+            Name = "Rotation speed",
+            Range = {1, 15},
+            Increment = 1,
+            Suffix = "rpm",
+            CurrentValue = 5,
+            Flag = "SpinSpeed",
+            Callback = function(Value)
+                spinSpeed = Value
+                if spinEnabled then
+                    StopSpin()
+                    StartSpin()
                 end
-            end
+            end,
+        })
+
+        InfoTab = Window:CreateTab("Information", 0)
+        local InfoSection = InfoTab:CreateSection("Instructions for use")
+        InfoTab:CreateLabel("⚠️ For Fly to work, you need to fly")
+        InfoTab:CreateLabel("first 3-4 locations at low speed (20-25)")
+        InfoTab:CreateLabel("and then you can set it high")
+        InfoTab:CreateLabel("")
+        InfoTab:CreateLabel("⚠️ DO NOT CRASH UNDER ANY CIRCUMSTANCES")
+        InfoTab:CreateLabel("TO THE SIDE WALLS, THE SCRIPT BREAKS")
+        InfoTab:CreateLabel("")
+        InfoTab:CreateLabel("⚡ To make the spinner work, first select")
+        InfoTab:CreateLabel("revolutions and then click on the slider")
+
+        SettingsTab = Window:CreateTab("Settings", 0)
+        local SettingsSection = SettingsTab:CreateSection("⚠️ WARNING")
+        SettingsTab:CreateLabel("Note that this is a HVH cheat for which")
+        SettingsTab:CreateLabel("Account is being banned, the author is not responsible")
+        SettingsTab:CreateLabel("responsibility for the block issued to you")
+        SettingsTab:CreateLabel("")
+        SettingsTab:CreateLabel("📌 Version: 62.0")
+        SettingsTab:CreateLabel("👤 Author: BBLAN")
+    end)
+
+    if not success then
+        print("[Fly] Error creating GUI: " .. tostring(err))
+        return false
+    end
+
+    return true
+end
+
+-- ============================================
+-- 8. HOTKEY
+-- ============================================
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        if FlyToggle then
+            local newState = not flyToggleState
+            FlyToggle:Set(newState)
+            OnFlyToggle(newState)
         end
     end
 end)
 
-print("[SUCCESS] Steal An Egg Automation Framework Successfully Loaded!")
+-- ============================================
+-- 9. LAUNCH
+-- ============================================
+print("[Fly] ========================================")
+print("[Fly] Fly Script for Steal a Egg")
+print("[Fly] Author: BBLAN")
+print("[Fly] Version: 62.0")
+print("[Fly] ========================================")
+
+KillAntiCheat()
+ActivateGodMode()
+SetNetworkOwnership()
+
+local guiLoaded = CreateGUI()
+
+if FlyToggle then
+    FlyToggle:Set(false)
+    flyToggleState = false
+end
+if SpinToggle then
+    SpinToggle:Set(false)
+    spinToggleState = false
+end
+
+if guiLoaded and Rayfield then
+    Rayfield:Notify({
+        Title = "🛩️ Fly Script for Steal a Egg",
+        Content = "Script loaded! Press F to fly.",
+        Duration = 5,
+    })
+end
+
+print("[Fly] ✅ GOD MODE + FLY + TURNTABLE")
+print("[Fly] ✅ FULL SLIDER SYNC")
+print("[Fly] Controls: F - fly, WASD - move, Space - up, Shift - down")
+
+_G.ServerFly_Running = true
